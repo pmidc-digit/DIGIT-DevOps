@@ -17,7 +17,8 @@ cluster-configs:
                 db-url: "jdbc:postgresql://punjab-prod-fsm-eks-db.cq2b7v4okuhm.ap-south-1.rds.amazonaws.com:5432/punjab_prod_fsm_db" ## REPLACE:example: jdbc:postgresql://egov-demo.postgres.database.azure.com:5432/egov_demo
                 domain: "fsmmseva.lgpunjab.gov.in" ## REPLACE:Add your Domain Name    
                 egov-services-fqdn-name: "https://fsmmseva.lgpunjab.gov.in/" ## REPLACE:Add your Domain Name
-                egov-state-level-tenant-id: "pb" 
+                egov-state-level-tenant-id: "pb"
+                state-level-tenant-id: "pb"
                 s3-assets-bucket: "(pb-egov-assets|egov-qa-assets)" ## REPLACE:Add s3-assets-bucket name. Create this separately before adding it here. This is tenant specific.
                 
                  ## Do not Change
@@ -144,6 +145,32 @@ cluster-configs:
                 birth-death-services: "http://birth-death-services.egov:8080/"
                 egov-pdf: "http://egov-pdf.egov:8080/"
 
+# billingservices >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+billing-service:
+  replicas: 2
+  memory_limits: 256Mi
+  resources: |
+    limits:
+      cpu: 256m
+      memory: 300Mi
+    requests:
+      cpu: 256m
+      memory: 300Mi  
+  heap: "-Xmx256m -Xms256m -XX:TieredStopAtLevel=1"
+  java-args: "-Dspring.profiles.active=production"
+  server-tomcat-max-threads: "30"
+  server-tomcat-max-connections: "1500"
+  spring-datasource-tomcat-max-active: "10"  
+  tracing-enabled: "true"
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+# core >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+egov-accesscontrol:
+  replicas: 1 
+  java-args: "-Dspring.profiles.active=production"
+  heap: "-Xmx376m -Xms376m"   
+
+  
 egov-filestore:
   volume: /opt/eGov/filestore
   is-bucket-fixed: "true"
@@ -156,11 +183,36 @@ egov-filestore:
   filestore-url-validity: 3600
   fixed-bucketname: punjab-prod-fsm-s3  ## REPLACE: Add filestore bucket name. This has to be created separately.
 
+egov-localization:
+  replicas: 2
+  heap: "-Xmx378m -Xms378m"
+  server-tomcat-max-threads: "50"
+  server-tomcat-max-connections: "1500"
+  spring-datasource-tomcat-max-active: "10"  
+  resources: |
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 512Mi
+
+egov-location:
+  replicas: 1
+  memory_limits: 256Mi
+  heap: "-Xmx128m -Xms128m -XX:TieredStopAtLevel=1"
+  server-tomcat-max-threads: "10"
+  server-tomcat-max-connections: "1500"
+  
 egov-idgen:
+  replicas: 1
   idformat-from-mdms: "true"
   java-args: -Dspring.profiles.active=monitoring
   heap: "-Xmx192m -Xms192m"
   autocreate-new-seq: "true"
+  heap: "-Xmx128m -Xms128m -XX:TieredStopAtLevel=1"
+  server-tomcat-max-threads: "50"
+  server-tomcat-max-connections: "2000"
+  spring-datasource-tomcat-max-active: "30"  
+  idformat-from-mdms: "true"
 
 ## Below options to be configured for SMS notifications to work. Note that deployment will still go ahead
 ## even if these values are not filled in.
@@ -181,6 +233,32 @@ egov-notification-sms:
   sms-message-req-param-name: "message"
   sms-error-codes: "401,403,404,405,406,407,408,409,410,411,412,413,414"
 
+egov-otp:
+  replicas: 1
+
+egov-user:
+  replicas: 2
+  heap: "-Xmx256m -Xms256m -XX:TieredStopAtLevel=1"
+  memory_limits: 512Mi
+  otp-validation: "true"
+  citizen-otp-enabled: "true"
+  employee-otp-enabled: "false"
+  access-token-validity: 10080
+  refresh-token-validity: 20160
+  default-password-expiry: 90
+  mobile-number-validation: "false"
+  roles-state-level: "true"
+  citizen-registration-withlogin: "true"
+  citizen-otp-fixed: "123456"
+  citizen-otp-fixed-enabled: "true"
+  java-args: "-Dspring.profiles.active=production"
+  server-tomcat-max-threads: "50"
+  server-tomcat-max-connections: "2500"
+  spring-datasource-tomcat-max-active: "25"    
+  egov-state-level-tenant-id: "pb"
+  decryption-abac-enabled: "false"
+  tracing-enabled: "true"
+  account-unlock-cool-down-period-minutes: 5
 
 chatbot:
   kafka-topics-partition-count: 3
@@ -230,46 +308,77 @@ egov-pg-service:
 ## Configure MDMS GitHub repository access below. Make sure GitHub has the user's public SSH key added and user has
 ## access to the GitHub MDMS repository. Add corresponding private key to the corresponding egov-demo-template-secrets.yaml file.
 egov-mdms-service:
-  replicas: 1
+  replicas: 2
   images:
     - egovio/egov-mdms-service
   mdms-path: "/work-dir/egov-mdms-data/data"
   initContainers:
     gitSync:
       repo: "git@github.com:egovernments/punjab-mdms-data" ### REPLACE: Change this to Your MDMS Repo. Make sure the path is right and there is no .git extension at the end
-      branch: "FSM_2.3"  ### REPLACE: Branch need to be changed as per your env
+      branch: "FSM_2.3_Prod"  ### REPLACE: Branch need to be changed as per your env
   mdms-folder: "punjab-mdms-data" 
   masters-config-url: "file:///work-dir/punjab-mdms-data/mdms-masters-config.json"
   java-args: -Dspring.profiles.active=monitoring
+  memory_limits: 512Mi
+  heap: "-Xmx256m -Xms256m"  
+  ingress:
+    zuul: false
+  server-tomcat-max-threads: "500"
+  server-tomcat-max-connections: "10000"  
 
 ## Configure the indexer service and pass in the configs repository path.
 egov-indexer:
+  replicas: 1
   heap: "-Xmx512m -Xms512m"
   memory_limits: "768Mi"
   initContainers:
     gitSync:
       repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
-      branch: "FSM_2.3" ### REPLACE: Change this to your preferred branch name
-  egov-indexer-yaml-repo-path: "file:///work-dir/configs/egov-indexer/billingservices-indexer.yml,file:///work-dir/configs/egov-indexer/collection-indexer.yml,file:///work-dir/configs/egov-indexer/egov-telemetry-indexer.yml,file:///work-dir/configs/egov-indexer/egov-uploader-indexer.yml,file:///work-dir/configs/egov-indexer/error-queue.yml,file:///work-dir/configs/egov-indexer/finance-rolloutadotpion-indexer.yml,file:///work-dir/configs/egov-indexer/payment-indexer.yml,file:///work-dir/configs/egov-indexer/rainmaker-pgr-indexer.yml,file:///work-dir/configs/egov-indexer/rainmaker-pt-indexer.yml,file:///work-dir/configs/egov-indexer/rainmaker-tl-indexer.yml,file:///work-dir/configs/egov-indexer/chatbot-telemetry.yaml"
+      branch: "FSM_2.3_Prod" ### REPLACE: Change this to your preferred branch name
+  egov-indexer-yaml-repo-path: "file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/whatsapp-adoption-data.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/chatbot-telemetry-v2.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/billingservices-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/collection-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/egov-telemetry-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/egov-uploader-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/finance-rolloutadoption-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/rainmaker-pgr-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/rainmaker-pt-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/rainmaker-tl-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/payment-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/water-service.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/water-services-meter.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/sewerage-service.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/property-services.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/error-queue.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/payment-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/rainmaker-firenoc-indexer.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/payment-indexer-migration.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/property-services-migration-temp.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/covid-chatbot-telemetry.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/chatbot-telemetry-v2.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/egov-fsm.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/egov-vehicle.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-indexer/egov-vendor.yaml"
+  
+  heap: "-Xmx256m -Xms256m -XX:TieredStopAtLevel=1"
+  memory_limits: "512Mi"
 
 egov-persister:
-  replicas: 1
+  replicas: 2
+  heap: "-Xmx256m -Xms256m -XX:TieredStopAtLevel=1"
   images:
     - egovio/egov-persister
-  persist-yml-path: "file:///work-dir/configs/egov-persister/pt-mutation-calculator-persister.yml,file:///work-dir/configs/egov-persister/apportion-persister.yml,file:///work-dir/configs/egov-persister/billing-services-persist.yml,file:///work-dir/configs/egov-persister/egf-bill.yaml,file:///work-dir/configs/egov-persister/egov-user-event-persister.yml,file:///work-dir/configs/egov-persister/egov-workflow-v2-persister.yml,file:///work-dir/configs/egov-persister/firenoc_persiter.yaml,file:///work-dir/configs/egov-persister/hrms-employee-persister.yml,file:///work-dir/configs/egov-persister/pdf-generator.yml,file:///work-dir/configs/egov-persister/pg-service-persister.yml,file:///work-dir/configs/egov-persister/pgr.v3.yml,file:///work-dir/configs/egov-persister/property-services.yml,file:///work-dir/configs/egov-persister/pt-calculator-v2-persister.yml,file:///work-dir/configs/egov-persister/pt-drafts.yml,file:///work-dir/configs/egov-persister/pt-persist.yml,file:///work-dir/configs/egov-persister/tl-billing-slab-persister.yml,file:///work-dir/configs/egov-persister/tl-calculation-persister.yml,file:///work-dir/configs/egov-persister/uploader-persister.yml,file:///work-dir/configs/egov-persister/collection-migration-persister.yml,file:///work-dir/configs/egov-persister/property-services-registry.yml,file:///work-dir/configs/egov-persister/tradelicense.yml,file:///work-dir/configs/egov-persister/sewerage-persist.yml,file:///work-dir/configs/egov-persister/water-persist.yml,file:///work-dir/configs/egov-persister/water-meter.yml,file:///work-dir/configs/egov-persister/bpa-persister.yml,file:///work-dir/configs/egov-persister/assessment-persister.yml,file:///work-dir/configs/egov-persister/chatbot.yml"
+  persist-yml-path: "file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/pg-service-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/pgr-v3-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/property-services-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/pt-calculator-v2-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/pt-drafts-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/tradelicense-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/indexer-job-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/tl-calculation-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/tl-billing-slab-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/hrms-employee-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/egov-workflow-v2-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/apportion-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/assessment-persister-migration-temp.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/migration-batch-count-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/property-services-migration-temp-config.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/collection-migration-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/water-persist.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/water-meter.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/sewerage-persist.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/property-services-registry.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/property-services.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/pt-mutation-calculator-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/assessment-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/pdf-generator.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/pdf-filestoreid-update.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/egov-user-event-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/firenoc_persiter.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/firenoc-calculator-persister.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/egf-bill.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/water-bill-scheduler.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/sewerage-bill-scheduler.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/echallan.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/vehicle-persister.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/vendor-persister.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/fsm-calculator-persister.yaml,file:///work-dir/punjab-rainmaker-customization/configs/egov-persister/fsm-persister.yaml"
+  java-args: "-Dspring.profiles.active=production"
   initContainers:
     gitSync:
       repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
-      branch: "FSM_2.3" ### REPLACE: Change this to your preferred branch name for the repo
+      branch: "FSM_2.3_Prod" ### REPLACE: Change this to your preferred branch name for the repo
 
+egov-workflow-v2:
+  replicas: 2
+  memory_limits: 512Mi
+  heap: "-Xmx128m -Xms128m -XX:TieredStopAtLevel=1"
+  java-args: "-Dspring.profiles.active=production"
+  server-tomcat-max-threads: "35"
+  server-tomcat-max-connections: "2500"
+  spring-datasource-tomcat-max-active: "25"  
+  wf-max-limit: "10000"
+  
 egov-data-uploader:
+  heap: "-Xmx128m -Xms128m -XX:TieredStopAtLevel=1"
+  upload-assessment: "YES"
+  upload-json-path: "file:///work-dir/punjab-rainmaker-customization/configs/egov-uploader/property-upload.json,file:///work-dir/punjab-rainmaker-customization/configs/egov-uploader/localization-upload.json,file:///work-dir/punjab-rainmaker-customization/configs/egov-uploader/CollectionReceiptWorkflow.json"
+  template-download-prefix: "file:///work-dir/punjab-rainmaker-customization/configs/upload-templates"
   initContainers:
     gitSync:
-      repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
-      branch: "FSM_2.3" ### REPLACE: Change this to your preferred branch name for the repo
+        repo: "git@github.com:egovernments/punjab-rainmaker-customization"
+        branch: "FSM_2.3_Prod"
+  internal-file-folder-path: "/tmp"
+  java-args: "-Dspring.profiles.active=production"
 
 egov-searcher:
-  search-yaml-path: "file:///work-dir/configs/egov-searcher/rainmaker-pgr-v2.yml,file:///work-dir/configs/egov-searcher/weekly-impact-emailer-searcher.yml,file:///work-dir/configs/egov-searcher/PTDemandBasedSearcher.yml,file:///work-dir/configs/egov-searcher/bill-genie.yml,file:///work-dir/configs/egov-searcher/rainmaker-tl.yml,file:///work-dir/configs/egov-searcher/localitySearcher.yml"
+  replicas: 1
+  heap: "-Xmx256m -Xms256m -XX:TieredStopAtLevel=1"
+  search-yaml-path: "file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/rainmaker-pgr-v2-searcher.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/rainmaker-pt-customsearch-punjab.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/rainmaker-pt-gissearch.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/weekly-impact-emailer-searcher.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/propertyopensearch.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/localitySearcher.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/bill-genie.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/PTDemandBasedSearcher.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/rainmaker-tl.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/weekly-impact-emailer-searcher.yml,file:///work-dir/punjab-rainmaker-customization/configs/egov-searcher/inboxFSMSearch.yml"
+  java-args: "-Dspring.profiles.active=production"
   initContainers:
     gitSync:
       repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
@@ -432,18 +541,23 @@ employee-mcs:
       ';"
 
 dashboard-analytics:
-  config-schema-paths: "file:///work-dir/configs/egov-dss-dashboards/dashboard-analytics/*.json"
+  heap: "-Xmx512m -Xms256m"
+  config-schema-paths: "file:///work-dir/punjab-rainmaker-customization/configs/egov-dss-dashboards/dashboard-analytics/*.json"
   initContainers:
     gitSync:
-      repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
-      branch: "FSM_2.3"  ### REPLACE: Change this to your preferred branch name for the repo
+        repo: "git@github.com:egovernments/punjab-rainmaker-customization"
+        branch: "FSM_2.3_Prod"      
 
 dashboard-ingest:
-  config-schema-paths: "file:///work-dir/configs/egov-dss-dashboards/dashboard-ingest/*.json"
+  heap: "-Xmx512m -Xms256m -XX:TieredStopAtLevel=1"
+  topic-incoming-collection: "dss-collection-update"
+  es-index-name: "dss-collection_v2"
+  es-push-direct: "false"
+  config-schema-paths: "file:///work-dir/punjab-rainmaker-customization/configs/egov-dss-dashboards/dashboard-ingest/*.json"
   initContainers:
     gitSync:
-      repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
-      branch: "FSM_2.3"  ### REPLACE: Change this to your preferred branch name for the repo
+        repo: "git@github.com:egovernments/punjab-rainmaker-customization"
+        branch: "FSM_2.3_Prod" 
 
 
 citizen:
@@ -457,14 +571,19 @@ citizen:
 
 # reportinfra >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 report:
+  replicas: 1
   heap: "-Xmx512m -Xms512m"
   tracing-enabled: "true"
-  spring-datasource-tomcat-max-active: 5
+  server-tomcat-max-threads: "30"
+  server-tomcat-max-connections: "1000"
+  spring-datasource-tomcat-max-active: "100"  
+  java-args: "-Dspring.profiles.active=production"
+  spring-datasource-tomcat-max-active: 10
+  report-locationsfile-path: "file:///work-dir/punjab-rainmaker-customization/configs/reports/report.config"
   initContainers:
     gitSync:
-      repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
-      branch: "FSM_2.3" ### REPLACE: Change this to your preferred branch name for the repo
-  report-locationsfile-path: "file:///work-dir/configs/reports/reportFileLocationsv1.txt"
+        repo: "git@github.com:egovernments/punjab-rainmaker-customization"
+        branch: "FSM_2.3_Prod"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -472,9 +591,9 @@ pdf-service:
   initContainers:
     gitSync:
       repo: "git@github.com:egovernments/punjab-rainmaker-customization" ### REPLACE: Change this to Your Config Repo
-      branch: "FSM_2.3"   ### REPLACE: Change this to your preferred branch name for the repo
-  data-config-urls: "file:///work-dir/configs/pdf-service/data-config/tradelicense-receipt.json,file:///work-dir/configs/pdf-service/data-config/property-receipt.json,file:///work-dir/configs/pdf-service/data-config/property-bill.json,file:///work-dir/configs/pdf-service/data-config/tradelicense-bill.json,file:///work-dir/configs/pdf-service/data-config/firenoc-receipt.json,file:///work-dir/configs/pdf-service/data-config/pt-receipt.json,file:///work-dir/configs/pdf-service/data-config/tl-receipt.json,file:///work-dir/configs/pdf-service/data-config/consolidatedbill.json,file:///work-dir/configs/pdf-service/data-config/consolidatedreceipt.json,file:///work-dir/configs/pdf-service/data-config/tlapplication.json,file:///work-dir/configs/pdf-service/data-config/passvehicle-certificate.json,file:///work-dir/configs/pdf-service/data-config/ws-consolidatedacknowlegment.json,file:///work-dir/configs/pdf-service/data-config/ws-consolidatedsewerageconnection.json,file:///work-dir/configs/pdf-service/data-config/buildingpermit.json,file:///work-dir/configs/pdf-service/data-config/ptmutationcertificate.json,file:///work-dir/configs/pdf-service/data-config/tlrenewalcertificate.json,file:///work-dir/configs/pdf-service/data-config/bpa-revocation.json,file:///work-dir/configs/pdf-service/data-config/buildingpermit-low.json,file:///work-dir/configs/pdf-service/data-config/misc-receipt.json,file:///work-dir/configs/pdf-service/data-config/ws-applicationwater.json,file:///work-dir/configs/pdf-service/data-config/ws-sanctionletter.json,file:///work-dir/configs/pdf-service/data-config/ws-estimationnotice.json,file:///work-dir/configs/pdf-service/data-config/ws-applicationsewerage.json,file:///work-dir/configs/pdf-service/data-config/tlcertificate.json"
-  format-config-urls: "file:///work-dir/configs/pdf-service/format-config/tradelicense-receipt.json,file:///work-dir/configs/pdf-service/format-config/property-receipt.json,file:///work-dir/configs/pdf-service/format-config/property-bill.json,file:///work-dir/configs/pdf-service/format-config/tradelicense-bill.json,file:///work-dir/configs/pdf-service/format-config/firenoc-receipt.json,file:///work-dir/configs/pdf-service/format-config/pt-receipt.json,file:///work-dir/configs/pdf-service/format-config/tl-receipt.json,file:///work-dir/configs/pdf-service/format-config/consolidatedbill.json,file:///work-dir/configs/pdf-service/format-config/consolidatedreceipt.json,file:///work-dir/configs/pdf-service/format-config/tlapplication.json,file:///work-dir/configs/pdf-service/format-config/passvehicle-certificate.json,file:///work-dir/configs/pdf-service/format-config/ws-consolidatedacknowlegment.json,file:///work-dir/configs/pdf-service/format-config/ws-consolidatedsewerageconnection.json,file:///work-dir/configs/pdf-service/format-config/buildingpermit.json,file:///work-dir/configs/pdf-service/format-config/ptmutationcertificate.json,file:///work-dir/configs/pdf-service/format-config/tlrenewalcertificate.json,file:///work-dir/configs/pdf-service/format-config/bpa-revocation.json,file:///work-dir/configs/pdf-service/format-config/buildingpermit-low.json,file:///work-dir/configs/pdf-service/format-config/misc-receipt.json,file:///work-dir/configs/pdf-service/format-config/ws-applicationwater.json,file:///work-dir/configs/pdf-service/format-config/ws-sanctionletter.json,file:///work-dir/configs/pdf-service/format-config/ws-estimationnotice.json,file:///work-dir/configs/pdf-service/format-config/ws-applicationsewerage.json,file:///work-dir/configs/pdf-service/format-config/tlcertificate.json"
+      branch: "FSM_2.3_Prod"   ### REPLACE: Change this to your preferred branch name for the repo
+  data-config-urls: "file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/tradelicense-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/property-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/property-bill.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/tradelicense-bill.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/firenoc-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/pt-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/tl-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/consolidatedbill.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/consolidatedreceipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/tlapplication.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/passvehicle-certificate.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/ws-consolidatedacknowlegment.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/ws-consolidatedsewerageconnection.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/buildingpermit.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/ptmutationcertificate.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/tlrenewalcertificate.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/bpa-revocation.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/buildingpermit-low.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/misc-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/ws-applicationwater.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/ws-sanctionletter.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/ws-estimationnotice.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/ws-applicationsewerage.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/data-config/tlcertificate.json"
+  format-config-urls: "file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/tradelicense-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/property-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/property-bill.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/tradelicense-bill.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/firenoc-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/pt-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/tl-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/consolidatedbill.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/consolidatedreceipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/tlapplication.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/passvehicle-certificate.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/ws-consolidatedacknowlegment.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/ws-consolidatedsewerageconnection.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/buildingpermit.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/ptmutationcertificate.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/tlrenewalcertificate.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/bpa-revocation.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/buildingpermit-low.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/misc-receipt.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/ws-applicationwater.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/ws-sanctionletter.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/ws-estimationnotice.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/ws-applicationsewerage.json,file:////work-dir/punjab-rainmaker-customization/configs/pdf-service/format-config/tlcertificate.json"
 
 
 ## Below is Kafka configuration. In case of AWS, Terraform apply step would've printed all the provisioned infra.
