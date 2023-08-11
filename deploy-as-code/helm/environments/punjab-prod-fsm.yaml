@@ -306,8 +306,6 @@ egov-pg-service:
 ## access to the GitHub MDMS repository. Add corresponding private key to the corresponding egov-demo-template-secrets.yaml file.
 egov-mdms-service:
   replicas: 2
-  images:
-    - egovio/egov-mdms-service
   mdms-path: "/work-dir/punjab-mdms-data/data"
   initContainers:
     gitSync:
@@ -318,8 +316,6 @@ egov-mdms-service:
   java-args: -Dspring.profiles.active=monitoring
   memory_limits: 512Mi
   heap: "-Xmx256m -Xms256m"  
-  ingress:
-    zuul: false
   server-tomcat-max-threads: "500"
   server-tomcat-max-connections: "10000"  
 
