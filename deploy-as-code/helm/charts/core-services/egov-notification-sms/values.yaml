@@ -27,7 +27,7 @@ sms.provider.url: "https://msdgweb.mgov.gov.in/esms/sendsmsrequest"
 sms.provider.requestType: "POST"
 sms.provider.contentType: "application/json"
 sms.provider.class: "MSDG"
-sms.verify.response: true
+sms.verify.response: false
 sms.print.response: false
 sms.success.codes: "200,201,202"
 sms.verify.responseContains: "SMS message(s) sent"
