@@ -853,7 +853,7 @@ oauth2-proxy:
   config:
     configFile: |-
       email_domains = [ "*" ]
-      github_org = "egovernments"     # Repalce with github org name
+      github_org = "pmidc-digit"     # Repalce with github org name
       github_team = "punjab-prod-fsm"     # Repalce with github teams
       upstreams = [ "file:///dev/null" ]
 
